@@ -1,0 +1,15 @@
+RewriteEngine On
+RewriteBase /SistecFE/
+
+# 1. Quitar extensión .php de las URLs
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^(.+?)/?$ $1.php [L]
+
+# 2. Quitar extensión .html de las URLs
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.html -f
+RewriteRule ^(.+?)/?$ $1.html [L]
+
+# 3. Manejo de error 404 (cuando la ruta no existe)
+ErrorDocument 404 /SistecFE/404.php
