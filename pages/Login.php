@@ -46,8 +46,8 @@
                         <div class="col-xxl-5 col-xl-5 col-lg-5 col-md-6 col-sm-8 col-12">
                             <div class="my-5 d-flex justify-content-center">
                                 <a href="#">
-                                    <img src="<?= DOMAIN ?>/assets/template/images/brand-logos/desktop-logo.png" alt="" class="authentication-brand desktop-logo">
-                                    <img src="<?= DOMAIN ?>/assets/template/images/brand-logos/desktop-dark.png" alt="img" class="authentication-brand desktop-dark">
+                                    <img src="<?= $config->url_desktop_logo ?>" alt="" class="authentication-brand desktop-logo">
+                                    <img src="<?= $config->url_desktop_logo ?>" alt="img" class="authentication-brand desktop-dark">
                                 </a>
                             </div>
 

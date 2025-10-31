@@ -6,13 +6,8 @@
       <i class="ri-file-list-3-line me-2"></i> Reporte de Productos
     </h3>
     <div class="d-flex gap-2">
-      <!-- Exportar actual (CSV, sin dependencias) -->
-      <button type="button" class="btn btn-outline-success" id="btnExportCsvProductos">
-        <i class="ri-file-excel-2-line me-1"></i> Exportar (CSV)
-      </button>
-      <!-- Exportar vía PHP (tabla simple para Excel) -->
-      <button type="button" class="btn btn-outline-primary" id="btnExportPhpProductos">
-        <i class="ri-external-link-line me-1"></i> Exportar vía PHP
+      <button type="button" class="btn btn-outline-success" id="btnExportExcelProductos">
+        <i class="ri-file-excel-2-line me-1"></i> Exportar (Excel)
       </button>
     </div>
   </div>
@@ -37,10 +32,6 @@
           </label>
           <select id="selCategoriaProducto" class="form-select">
             <option value="">Todas</option>
-            <option>General</option>
-            <option>Alimentos</option>
-            <option>Farmacia</option>
-            <option>Servicios</option>
           </select>
         </div>
 
@@ -50,11 +41,6 @@
           </label>
           <select id="selIvaProducto" class="form-select">
             <option value="">Todos</option>
-            <option value="0">0%</option>
-            <option value="1">1%</option>
-            <option value="2">2%</option>
-            <option value="4">4%</option>
-            <option value="13">13%</option>
           </select>
         </div>
 
@@ -95,7 +81,14 @@
             <i class="ri-list-ordered-2 me-1"></i> Filas a mostrar
           </label>
           <select id="selLimitProductos" class="form-select">
-            <option>10</option><option selected>25</option><option>50</option><option>100</option><option value="0">Todos</option>
+            <option>10</option>
+            <option selected>25</option>
+            <option>50</option>
+            <option>100</option>
+            <option>500</option>
+            <option>1000</option>
+            <option>5000</option>
+            <option>10000</option>
           </select>
         </div>
 
@@ -113,6 +106,8 @@
           </button>
         </div>
       </form>
+
+      <div id="alertaProductos" class="alert mt-3 d-none"></div>
     </div>
   </div>
 
@@ -141,9 +136,7 @@
               <th>Estado</th>
             </tr>
           </thead>
-          <tbody id="tablaReporteBodyProductos">
-            <!-- filas dinámicas -->
-          </tbody>
+          <tbody id="tablaReporteBodyProductos"></tbody>
         </table>
       </div>
 
@@ -155,31 +148,19 @@
       </div>
     </div>
   </div>
-
-  <!-- Form oculto para exportar vía PHP (tabla simple sin diseño) -->
-  <form id="formExportPhpProductos" action="/reportes/exportar_productos.php" method="post" target="_blank" class="d-none">
-    <!-- El backend debe leer este JSON y renderizar una tabla HTML simple y setear headers para Excel -->
-    <textarea name="rowsJson" id="rowsJsonProductos"></textarea>
-    <!-- Opcional: enviar metadatos de filtros -->
-    <input type="hidden" name="filtrosJson" id="filtrosJsonProductos">
-  </form>
 </section>
 
 <!-- ===================== Scripts Reporte Productos ===================== -->
 <script>
-  // Dataset de ejemplo (remover y sustituir con fetch al backend)
-  const productsData = [
-    { codigo:'PRD-0001', nombre:'Acetaminofén 500mg', unidad:'Unid', categoria:'Farmacia', cantidad:150, precio:1250.00, cabys:'101010101', iva:13, estado:'Activo' },
-    { codigo:'PRD-0002', nombre:'Bolsa de arroz 1Kg', unidad:'Kg', categoria:'Alimentos', cantidad:45, precio:1050.50, cabys:'101010202', iva:13, estado:'Activo' },
-    { codigo:'PRD-0003', nombre:'Servicio técnico básico', unidad:'Unid', categoria:'Servicios', cantidad:0, precio:25000.00, cabys:'201020303', iva:13, estado:'Inactivo' },
-    { codigo:'PRD-0004', nombre:'Leche deslactosada 1L', unidad:'Lt', categoria:'Alimentos', cantidad:220, precio:890.00, cabys:'101010404', iva:1, estado:'Activo' },
-    { codigo:'PRD-0005', nombre:'Producto exento', unidad:'Unid', categoria:'General', cantidad:10, precio:0.00, cabys:'101010505', iva:0, estado:'Inactivo' },
-    // ...
-  ];
+  const apiReporteProductos = 'api/productos/reporte_productos.php';
+  const apiHacienda = 'api/hacienda/index.php';
+  const maxFilasPermitidas = 10000;
 
-  // Estado UI
-  let filteredProducts = [...productsData];
+  // Estado
   let paginaProductos = 1;
+  let tamPaginaProductos = 25;
+  let totalProductos = 0;
+  let rowsPaginaActual = [];
 
   // Elementos
   const inputBuscarProducto = document.getElementById('inputBuscarProducto');
@@ -202,148 +183,336 @@
   const btnPrevPaginaProductos = document.getElementById('btnPrevPaginaProductos');
   const btnNextPaginaProductos = document.getElementById('btnNextPaginaProductos');
 
-  const btnExportCsvProductos = document.getElementById('btnExportCsvProductos');
-  const btnExportPhpProductos = document.getElementById('btnExportPhpProductos');
-  const formExportPhpProductos = document.getElementById('formExportPhpProductos');
-  const rowsJsonProductos = document.getElementById('rowsJsonProductos');
-  const filtrosJsonProductos = document.getElementById('filtrosJsonProductos');
+  const btnExportExcelProductos = document.getElementById('btnExportExcelProductos');
+  const alertaProductos = document.getElementById('alertaProductos');
 
-  // Aplicar filtros
-  const applyProductFilters = () => {
-    const term = (inputBuscarProducto.value || '').trim().toLowerCase();
-    const categoria = selCategoriaProducto.value;
-    const iva = selIvaProducto.value;
-    const estado = selEstadoProducto.value;
-    const pmin = parseFloat(inputPrecioMin.value);
-    const pmax = parseFloat(inputPrecioMax.value);
-    const qmin = parseFloat(inputCantidadMin.value);
-
-    filteredProducts = productsData.filter(row => {
-      if (categoria && row.categoria !== categoria) return false;
-      if (iva !== '' && String(row.iva) !== String(iva)) return false;
-      if (estado && row.estado !== estado) return false;
-
-      if (!isNaN(pmin) && Number(row.precio) < pmin) return false;
-      if (!isNaN(pmax) && Number(row.precio) > pmax) return false;
-      if (!isNaN(qmin) && Number(row.cantidad) < qmin) return false;
-
-      if (!term) return true;
-      return (
-        (row.codigo || '').toLowerCase().includes(term) ||
-        (row.nombre || '').toLowerCase().includes(term) ||
-        (row.cabys || '').toLowerCase().includes(term) ||
-        (row.categoria || '').toLowerCase().includes(term)
-      );
-    });
-
-    paginaProductos = 1;
-    renderProductsTable();
+  // Helpers SweetAlert seguros
+  const safeClose = () => {
+    try {
+      if (window.Swal) Swal.close();
+    } catch (e) {}
+    const fb = document.getElementById('loader-fallback');
+    if (fb) fb.remove();
   };
 
-  // Render tabla con limit y paginación simple
+  // UI helpers
+  const escapeHtml = (s) => String(s ?? '')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+
+  const moneyFmt = (n) => {
+    const num = Number(n ?? 0);
+    return num.toLocaleString('es-CR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+  const numFmt = (n) => {
+    const num = Number(n ?? 0);
+    return isNaN(num) ? '' : num.toLocaleString('es-CR');
+  };
+
+  const showAlertProductos = (type, title, detail = '') => {
+    alertaProductos.className = `alert alert-${type} mt-3`;
+    alertaProductos.innerHTML = `<strong>${title}</strong>${detail ? '<div class="small mt-1">'+detail+'</div>' : ''}`;
+    alertaProductos.classList.remove('d-none');
+  };
+  const clearAlertProductos = () => {
+    alertaProductos.classList.add('d-none');
+    alertaProductos.className = 'alert mt-3 d-none';
+    alertaProductos.innerHTML = '';
+  };
+
+  const setLoadingUi = (isLoading) => {
+    btnAplicarFiltrosProductos.disabled = isLoading;
+    btnLimpiarFiltrosProductos.disabled = isLoading;
+    btnExportExcelProductos.disabled = isLoading || (totalProductos <= 0);
+  };
+
+  // Filtros -> payload
+  const buildFiltros = () => ({
+    buscarTexto: (inputBuscarProducto.value || '').trim(),
+    categoria: (selCategoriaProducto.value || '').trim(), // id_producto_categoria (código) o nombre
+    iva: (selIvaProducto.value || '').trim(), // codigo de hacienda_imp_general
+    estado: (selEstadoProducto.value || '').trim(),
+    precioMin: (inputPrecioMin.value || '').trim(),
+    precioMax: (inputPrecioMax.value || '').trim(),
+    cantidadMin: (inputCantidadMin.value || '').trim()
+  });
+
+  // Cargar categorías para select (desde backend de productos)
+  const cargarCategorias = async () => {
+    const res = await fetch(apiReporteProductos, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        accion: 'categorias'
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = data.message || `Error HTTP ${res.status}`;
+      showAlertProductos('danger', 'No se pudieron cargar categorías.', msg);
+      if (window.swalError) swalError(msg);
+      return;
+    }
+    const categorias = Array.isArray(data?.data?.rows) ? data.data.rows : [];
+    const options = ['<option value="">Todas</option>'].concat(
+      categorias.map(c => {
+        const codigo = c.idProductoCategoria ?? c.codigo ?? '';
+        const nombre = c.nombre ?? '';
+        return `<option value="${escapeHtml(codigo)}">${escapeHtml(nombre)} (${escapeHtml(codigo)})</option>`;
+      })
+    );
+    selCategoriaProducto.innerHTML = options.join('');
+  };
+
+  // Cargar IVA para select (desde HACIENDA: imp_general)
+  const cargarIva = async () => {
+    const res = await fetch(apiHacienda, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        accion: 'imp_general'
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = (data && data.message) ? data.message : `Error HTTP ${res.status}`;
+      showAlertProductos('danger', 'No se pudo cargar IVA.', msg);
+      if (window.swalError) swalError(msg);
+      return;
+    }
+    const ivas = Array.isArray(data) ? data : [];
+    const options = ['<option value="">Todos</option>'].concat(
+      ivas.map(i => `<option value="${escapeHtml(i.codigo)}">${escapeHtml(i.codigo)}% - ${escapeHtml(i.descripcion || '')}</option>`)
+    );
+    selIvaProducto.innerHTML = options.join('');
+  };
+
+  // Carga selects dinámicos (NO dispara búsqueda)
+  const cargarFiltrosDinamicos = async () => {
+    try {
+      if (window.swalLoading) swalLoading('Cargando filtros…');
+      await Promise.all([cargarCategorias(), cargarIva()]);
+      clearAlertProductos();
+    } catch (err) {
+      const msg = String(err);
+      showAlertProductos('danger', 'Error de red al cargar filtros.', msg);
+      if (window.swalError) swalError(msg);
+    } finally {
+      safeClose();
+    }
+  };
+
+  // Fetch listar
+  const fetchProductos = async (pagina, tamPagina) => {
+    // clamp del tamaño de página al máximo permitido
+    let pageSize = Math.max(1, Number(tamPagina) || 25);
+    if (pageSize > maxFilasPermitidas) pageSize = maxFilasPermitidas;
+
+    const payload = {
+      accion: 'listar',
+      pagina: Math.max(1, Number(pagina) || 1),
+      tamPagina: pageSize,
+      filtros: buildFiltros()
+    };
+
+    try {
+      setLoadingUi(true);
+      // if (window.swalLoading) swalLoading('Cargando…');
+
+      const res = await fetch(apiReporteProductos, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data.message || `Error HTTP ${res.status}`;
+        showAlertProductos('danger', 'No se pudieron cargar los productos.', msg);
+        if (window.swalError) swalError(msg);
+        return {
+          total: 0,
+          data: []
+        };
+      }
+
+      clearAlertProductos();
+      return {
+        total: Number(data?.data?.total || 0),
+        data: Array.isArray(data?.data?.rows) ? data.data.rows : []
+      };
+    } catch (err) {
+      const msg = String(err);
+      showAlertProductos('danger', 'Error de red al consultar.', msg);
+      if (window.swalError) swalError(msg);
+      return {
+        total: 0,
+        data: []
+      };
+    } finally {
+      safeClose();
+      setLoadingUi(false);
+    }
+  };
+
+  // Render
   const renderProductsTable = () => {
-    const limit = parseInt(selLimitProductos.value, 10);
-    const total = filteredProducts.length;
-    const pageSize = limit === 0 ? total : limit;
-
-    const startIdx = (paginaProductos - 1) * pageSize;
-    const endIdx = Math.min(startIdx + pageSize, total);
-    const slice = filteredProducts.slice(startIdx, endIdx);
-
-    tablaReporteBodyProductos.innerHTML = slice.map(r => `
+    const rows = rowsPaginaActual;
+    tablaReporteBodyProductos.innerHTML = rows.map(r => `
       <tr>
-        <td>${escapeHtmlProductos(r.codigo)}</td>
-        <td>${escapeHtmlProductos(r.nombre)}</td>
-        <td>${escapeHtmlProductos(r.unidad)}</td>
-        <td>${escapeHtmlProductos(r.categoria)}</td>
+        <td>${escapeHtml(r.codigo)}</td>
+        <td>${escapeHtml(r.detalle ?? r.nombre ?? '')}</td>
+        <td>${escapeHtml(r.unidad ?? '')}</td>
+        <td>${escapeHtml(r.categoria ?? '')}</td>
         <td class="text-end">${numFmt(r.cantidad)}</td>
         <td class="text-end">₡ ${moneyFmt(r.precio)}</td>
-        <td>${escapeHtmlProductos(r.cabys)}</td>
-        <td class="text-end">${numFmt(r.iva)}</td>
-        <td>${escapeHtmlProductos(r.estado)}</td>
+        <td>${escapeHtml(r.codigoCabys ?? r.cabys ?? '')}</td>
+        <td class="text-end">${escapeHtml(r.tarifaIva ?? r.iva ?? '')}</td>
+        <td>${escapeHtml(r.estado ?? '')}</td>
       </tr>
     `).join('');
 
-    infoDesdeProductos.textContent = total ? (startIdx + 1) : 0;
-    infoHastaProductos.textContent = endIdx;
-    infoTotalProductos.textContent = total;
-    paginaActualProductos.textContent = total ? paginaProductos : 0;
+    const desde = rows.length ? ((paginaProductos - 1) * tamPaginaProductos + 1) : 0;
+    const hasta = rows.length ? ((paginaProductos - 1) * tamPaginaProductos + rows.length) : 0;
 
-    btnPrevPaginaProductos.disabled = (paginaProductos <= 1) || (pageSize === total);
-    btnNextPaginaProductos.disabled = (endIdx >= total) || (pageSize === total);
+    infoDesdeProductos.textContent = desde;
+    infoHastaProductos.textContent = hasta;
+    infoTotalProductos.textContent = totalProductos;
+    paginaActualProductos.textContent = totalProductos ? paginaProductos : 0;
+
+    const maxPage = Math.max(1, Math.ceil(totalProductos / tamPaginaProductos));
+    btnPrevPaginaProductos.disabled = (paginaProductos <= 1);
+    btnNextPaginaProductos.disabled = (paginaProductos >= maxPage);
+
+    btnExportExcelProductos.disabled = (totalProductos <= 0);
   };
 
-  // Export CSV (sin dependencias)
-  const exportCsvProductos = (rows) => {
-    if (!rows.length) return;
-    const headers = ['Codigo','Nombre','Unidad','Categoria','Cantidad','Precio','Cabys','Iva','Estado'];
-    const lines = [headers.join(',')].concat(
-      rows.map(r => [
-        r.codigo, r.nombre, r.unidad, r.categoria,
-        r.cantidad, r.precio, r.cabys, r.iva, r.estado
-      ].map(csvEscapeProductos).join(','))
-    );
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'Reporte_Productos.csv';
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  // Acciones de consulta (solo con botón Aplicar o Limpiar)
+  const applyProductFilters = async () => {
+    // tomar el tamaño actual, pero NO disparar al cambiar, solo aquí:
+    let v = parseInt(selLimitProductos.value, 10) || 25;
+    if (v > maxFilasPermitidas) {
+      v = maxFilasPermitidas;
+      selLimitProductos.value = String(maxFilasPermitidas);
+      if (window.notify) notify('Máximo 10 000 filas por página.', 'warning');
+    }
+    tamPaginaProductos = v;
+
+    paginaProductos = 1;
+    const {
+      total,
+      data
+    } = await fetchProductos(paginaProductos, tamPaginaProductos);
+    totalProductos = total;
+    rowsPaginaActual = data;
+    renderProductsTable();
   };
 
-  // Export vía PHP (envía JSON de filas filtradas, sin diseño)
-  const exportPhpProductos = (rows) => {
-    const payload = rows.map(r => ({
-      Codigo: r.codigo,
-      Nombre: r.nombre,
-      Unidad: r.unidad,
-      Categoria: r.categoria,
-      Cantidad: r.cantidad,
-      Precio: r.precio,
-      Cabys: r.cabys,
-      Iva: r.iva,
-      Estado: r.estado
-    }));
-    rowsJsonProductos.value = JSON.stringify(payload);
-    filtrosJsonProductos.value = JSON.stringify({
-      term: inputBuscarProducto.value,
-      categoria: selCategoriaProducto.value,
-      iva: selIvaProducto.value,
-      estado: selEstadoProducto.value,
-      precioMin: inputPrecioMin.value,
-      precioMax: inputPrecioMax.value,
-      cantidadMin: inputCantidadMin.value,
-      limit: selLimitProductos.value
-    });
-    formExportPhpProductos.submit();
+  const goToPage = async (pagina) => {
+    paginaProductos = Math.max(1, pagina);
+    const {
+      total,
+      data
+    } = await fetchProductos(paginaProductos, tamPaginaProductos);
+    totalProductos = total;
+    rowsPaginaActual = data;
+    renderProductsTable();
   };
 
-  // Helpers
-  const escapeHtmlProductos = (s) => String(s)
-    .replaceAll('&','&amp;').replaceAll('<','&lt;')
-    .replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+  const exportExcelProductos = async () => {
+    try {
+      setLoadingUi(true);
+      if (window.swalLoading) swalLoading('Preparando Excel…');
 
-  const csvEscapeProductos = (val) => {
-    const s = String(val ?? '');
-    if (/[",\n]/.test(s)) return `"${s.replaceAll('"','""')}"`;
-    return s;
+      const payload = {
+        accion: 'exportar',
+        filtros: buildFiltros(),
+        maxFilas: maxFilasPermitidas
+      };
+
+      const res = await fetch(apiReporteProductos, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const msg = data.message || `Error HTTP ${res.status}`;
+        showAlertProductos('danger', 'No se pudo exportar.', msg);
+        if (window.swalError) swalError(msg);
+        return;
+      }
+
+      const rows = Array.isArray(data?.data?.rows) ? data.data.rows : [];
+      if (!rows.length) {
+        showAlertProductos('warning', 'Sin datos para exportar', 'Ajusta los filtros e inténtalo nuevamente.');
+        if (window.notify) notify('No hay datos para exportar', 'warning');
+        return;
+      }
+
+      const headers = [
+        'Codigo', 'CodigoCabys', 'Detalle', 'Unidad', 'Cantidad', 'Precio',
+        'TarifaIVA', 'Categoria', 'RegistroMedicamento', 'FormaFarmaceutica', 'PartidaArancelaria'
+      ];
+
+      // Normalización Precio con punto decimal
+      const normalizedRows = rows.map(r => ({
+        Codigo: String(r.Codigo ?? r.codigo ?? ''),
+        CodigoCabys: String(r.CodigoCabys ?? r.codigoCabys ?? r.Cabys ?? ''),
+        Detalle: String(r.Detalle ?? r.detalle ?? r.Nombre ?? r.nombre ?? ''),
+        Unidad: String(r.Unidad ?? r.unidad ?? ''),
+        Cantidad: r.Cantidad ?? r.cantidad ?? '',
+        Precio: (() => {
+          const v = Number(r.Precio ?? r.precio ?? 0);
+          return (Math.round(v * 100) / 100).toFixed(2).replace(',', '.');
+        })(),
+        TarifaIVA: String(r.TarifaIVA ?? r.tarifaIva ?? r.iva ?? ''),
+        Categoria: String(r.Categoria ?? r.categoria ?? ''),
+        RegistroMedicamento: String(r.RegistroMedicamento ?? r.registroMedicamento ?? r.medRegistroSanitario ?? ''),
+        FormaFarmaceutica: String(r.FormaFarmaceutica ?? r.formaFarmaceutica ?? ''),
+        PartidaArancelaria: String(r.PartidaArancelaria ?? r.partidaArancelaria ?? '')
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(normalizedRows, {
+        header: headers
+      });
+      ws['!cols'] = headers.map(() => ({
+        wch: 20
+      }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Productos');
+
+      const now = new Date();
+      const fecha = now.toISOString().slice(0, 10);
+      const hora = now.toTimeString().slice(0, 8).replace(/:/g, '-');
+      XLSX.writeFile(wb, `Reporte_Productos_${fecha}_${hora}.xlsx`);
+
+      if (window.swalOk) swalOk('Archivo generado correctamente.');
+    } catch (err) {
+      const msg = String(err);
+      showAlertProductos('danger', 'Error exportando.', msg);
+      if (window.swalError) swalError(msg);
+    } finally {
+      safeClose();
+      setLoadingUi(false);
+    }
   };
 
-  const moneyFmt = (n) => {
-    const num = Number(n || 0);
-    return num.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    // Si prefieres sin localización, usa: return (Math.round(num*100)/100).toFixed(2);
-  };
-
-  const numFmt = (n) => {
-    const num = Number(n || 0);
-    return num.toLocaleString('es-CR');
-  };
-
-  // Eventos
+  // Eventos (no buscamos en onchange; solo con botones)
   btnAplicarFiltrosProductos.addEventListener('click', applyProductFilters);
-  btnLimpiarFiltrosProductos.addEventListener('click', () => {
+  btnLimpiarFiltrosProductos.addEventListener('click', async () => {
     inputBuscarProducto.value = '';
     selCategoriaProducto.value = '';
     selIvaProducto.value = '';
@@ -352,21 +521,36 @@
     inputPrecioMax.value = '';
     inputCantidadMin.value = '';
     selLimitProductos.value = '25';
-    applyProductFilters();
-  });
-  selLimitProductos.addEventListener('change', () => { paginaProductos = 1; renderProductsTable(); });
-
-  btnPrevPaginaProductos.addEventListener('click', () => { if (paginaProductos > 1) { paginaProductos--; renderProductsTable(); } });
-  btnNextPaginaProductos.addEventListener('click', () => {
-    const limit = parseInt(selLimitProductos.value, 10);
-    const pageSize = limit === 0 ? filteredProducts.length : limit;
-    const maxPage = Math.ceil(filteredProducts.length / (pageSize || 1));
-    if (paginaProductos < maxPage) { paginaProductos++; renderProductsTable(); }
+    await applyProductFilters();
   });
 
-  btnExportCsvProductos.addEventListener('click', () => exportCsvProductos(filteredProducts));
-  btnExportPhpProductos.addEventListener('click', () => exportPhpProductos(filteredProducts));
 
-  // Cargar inicial
-  applyProductFilters();
+  selLimitProductos.addEventListener('change', () => {
+    let v = parseInt(selLimitProductos.value, 10) || 25;
+    if (v > maxFilasPermitidas) {
+      v = maxFilasPermitidas;
+      selLimitProductos.value = String(maxFilasPermitidas);
+      if (window.notify) notify('Máximo 10 000 filas por página.', 'warning');
+    }
+    tamPaginaProductos = v; // se aplicará hasta que presionen "Aplicar"
+  });
+
+  btnPrevPaginaProductos.addEventListener('click', async () => {
+    if (paginaProductos > 1) await goToPage(paginaProductos - 1);
+  });
+
+  btnNextPaginaProductos.addEventListener('click', async () => {
+    const maxPage = Math.max(1, Math.ceil(totalProductos / tamPaginaProductos));
+    if (paginaProductos < maxPage) await goToPage(paginaProductos + 1);
+  });
+
+  btnExportExcelProductos.addEventListener('click', exportExcelProductos);
+
+  // Arranque: carga de selects sin buscar, luego primera consulta manual
+  (async () => {
+    await cargarFiltrosDinamicos();
+    await applyProductFilters();
+  })();
 </script>
+<!-- SheetJS para exportar a Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>

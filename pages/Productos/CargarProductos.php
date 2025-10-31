@@ -40,7 +40,7 @@
     <div class="card custom-card shadow-sm">
         <div class="card-body">
             <div class="d-flex align-items-center justify-content-between">
-                <h6 class="text-uppercase mb-3"><strong>Vista previa (máx. 100 filas)</strong></h6>
+                <h6 class="text-uppercase mb-3"><strong>Vista previa (máx. 10.000 filas)</strong></h6>
                 <div class="small text-muted" id="resumenCarga">Sin datos cargados</div>
             </div>
             <div class="table-responsive">
@@ -52,24 +52,31 @@
                     </thead>
                     <tbody id="tablaPreviewBody">
                         <!-- Filas dinámicas -->
+                        <tr>
+                            <td colspan="11" class="text-center text-muted py-4">
+                                <i class="ri-file-list-3-line" style="font-size: 32px;"></i>
+                                <div class="mt-2">No hay datos para mostrar</div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" class="btn btn-outline-secondary" id="btnDescargarErrores" disabled>
+                        <i class="ri-bug-line me-1"></i> Descargar errores
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btnProcesar" disabled>
+                        <i class="ri-check-line me-1"></i> Procesar carga
+                    </button>
+                </div>
             </div>
 
-            <div class="d-flex justify-content-end gap-2 mt-3">
-                <button type="button" class="btn btn-outline-secondary" id="btnDescargarErrores" disabled>
-                    <i class="ri-bug-line me-1"></i> Descargar errores
-                </button>
-                <button type="button" class="btn btn-primary" id="btnProcesar" disabled>
-                    <i class="ri-check-line me-1"></i> Procesar carga
-                </button>
-            </div>
         </div>
     </div>
 </section>
 
 <!-- ===================== Scripts de la sección ===================== -->
 <script>
+    const apiCargarProductos = 'api/productos/cargar_productos.php';
     // Cabeceras esperadas (orden y nombres exactos)
     const expectedHeaders = [
         "Codigo",
@@ -104,6 +111,10 @@
     const btnDescargarErrores = document.getElementById('btnDescargarErrores');
     const btnLimpiarCarga = document.getElementById('btnLimpiarCarga');
 
+    // Helpers de validación
+    const isInt = (v) => /^\d+$/.test(String(v).trim());
+    const isDecimalDot = (v) => /^\d+(\.\d+)?$/.test(String(v).trim());
+
     // Precargar cabeceras visibles
     const renderExpectedHeader = () => {
         tablaPreviewHead.innerHTML = expectedHeaders.map(h => `<th>${h}</th>`).join('');
@@ -133,6 +144,7 @@
     fileInput.addEventListener('change', e => {
         const file = e.target.files?.[0];
         if (file) handleFile(file);
+        e.target.value = '';
     });
 
     // Manejo de archivo
@@ -141,11 +153,7 @@
         const ext = (file.name.split('.').pop() || '').toLowerCase();
         if (['xlsx', 'xls'].includes(ext)) {
             if (typeof XLSX === 'undefined') {
-                showAlert(
-                    'warning',
-                    'Necesita incluir la librería XLSX en el <head> para leer archivos de Excel (.xlsx, .xls).',
-                    'Sugerencia: <code>https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js</code>'
-                );
+                showAlert('warning', 'Librería SheetJS no cargada. Contacta con soporte técnico.');
                 return;
             }
             readExcel(file);
@@ -158,6 +166,7 @@
 
     // Lectura de Excel con SheetJS (si está disponible en el proyecto)
     const readExcel = (file) => {
+        swalLoading('Procesando Excel. Espera por favor...');
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
@@ -172,7 +181,9 @@
                     defval: ''
                 }); // matriz [filas][celdas]
                 processMatrix(json);
+                Swal.close();
             } catch (err) {
+                Swal.close();
                 showAlert('danger', 'No se pudo leer el archivo Excel.', String(err));
             }
         };
@@ -238,17 +249,25 @@
 
         // Mapear filas a objetos
         const rows = matrix.slice(1).filter(r => r.length && r.some(v => String(v).trim() !== ''));
-        const limited = rows.slice(0, 100);
+        const limited = rows.slice(0, 10000); // soporta hasta 10.000 filas
         parsedRows = limited.map((r, idx) => {
             const obj = {};
             expectedHeaders.forEach((h, i) => obj[h] = (r[i] ?? '').toString().trim());
-            // Validaciones básicas de ejemplo
+
+            // Validaciones por fila
             const errs = [];
-            if (!obj.Codigo) errs.push('Codigo vacío');
-            if (!obj.Detalle) errs.push('Detalle vacío');
-            if (obj.Cantidad && isNaN(Number(obj.Cantidad))) errs.push('Cantidad no numérica');
-            if (obj.Precio && isNaN(Number(obj.Precio))) errs.push('Precio no numérico');
-            if (obj.TarifaIVA && isNaN(Number(obj.TarifaIVA))) errs.push('TarifaIVA no numérica');
+            if (!obj.CodigoCabys) errs.push('CodigoCabys vacio');
+            if (!obj.Detalle) errs.push('Detalle vacio');
+
+            if (obj.Unidad !== '' && !isInt(obj.Unidad)) errs.push('Unidad no entera');
+            if (obj.Cantidad !== '' && !isInt(obj.Cantidad)) errs.push('Cantidad no entera');
+            if (obj.Precio !== '' && !isDecimalDot(obj.Precio)) errs.push('Precio inválido (usar punto decimal)');
+            if (obj.TarifaIVA !== '' && !isInt(obj.TarifaIVA)) errs.push('TarifaIVA no entera');
+            if (obj.FormaFarmaceutica !== '' && !isInt(obj.FormaFarmaceutica)) errs.push('FormaFarmaceutica no entera');
+
+            // Opcional que ya tenías
+            if (obj.Categoria !== '' && !isInt(obj.Categoria)) errs.push('Categoria no numérica');
+
             if (errs.length) rowErrors.push({
                 fila: idx + 2,
                 errores: errs
@@ -287,14 +306,12 @@
 
     // Renderizar preview
     const renderPreview = (rows) => {
-        // Cabecera (asegurar orden esperado)
         renderExpectedHeader();
-        // Body
         tablaPreviewBody.innerHTML = rows.map(r => `
-      <tr>
-        ${expectedHeaders.map(h => `<td>${escapeHtml(r[h] ?? '')}</td>`).join('')}
-      </tr>
-    `).join('');
+            <tr>
+                ${expectedHeaders.map(h => `<td>${escapeHtml(r[h] ?? '')}</td>`).join('')}
+            </tr>
+        `).join('');
     };
 
     // Errores de encabezado
@@ -326,6 +343,7 @@
         validacionDetalle.textContent = '';
         btnProcesar.disabled = true;
         btnDescargarErrores.disabled = true;
+        fileInput.value = '';
     };
     const escapeHtml = (s) => String(s)
         .replaceAll('&', '&amp;')
@@ -338,8 +356,8 @@
     btnDescargarPlantilla.addEventListener('click', () => {
         const headerLine = expectedHeaders.join(',');
         const sample = [
-            'P001,101010101,Producto de ejemplo,Unid,10,12500,13,General,,,',
-            'P002,101010102,Otro producto,Kg,2,3500,13,Alimentos,,,',
+            'P001,101010101,Producto de ejemplo,1,10,12500,13,1,,2,',
+            'P002,101010102,Otro producto,2,2,3500,13,2,,3,',
         ].join('\n');
         const csv = headerLine + '\n' + sample + '\n';
         const blob = new Blob([csv], {
@@ -379,30 +397,138 @@
         resetState();
     });
 
-    // Procesar (placeholder)
     btnProcesar.addEventListener('click', async () => {
-        // Ejemplo de envío (ajusta a tu endpoint):
-        // Muestra cómo manejar mensajes del backend cuando venga 400 con "message"
-        try {
-            // Descomenta y ajusta:
-            // const res = await fetch('/api/productos/carga', {
-            //   method: 'POST',
-            //   headers: { 'Content-Type': 'application/json' },
-            //   body: JSON.stringify({ rows: parsedRows })
-            // });
-            // const data = await res.json().catch(() => ({}));
-            // if (!res.ok) {
-            //   const msg = data.message || `Error HTTP ${res.status}`;
-            //   showAlert('danger', 'No se pudo procesar la carga.', msg);
-            //   return;
-            // }
-            // showAlert('success', 'Carga procesada correctamente.', data.message || '');
-            // Opcional: resetState();
+        swalLoading('Procesando carga de productos. Espera por favor.');
+        // Prevalidación estricta antes de enviar
+        const faltantesCabys = [];
+        const faltantesDetalle = [];
+        const unidadNoEntera = [];
+        const cantidadNoEntera = [];
+        const precioInvalido = [];
+        const tarifaNoEntera = [];
+        const formaNoEntera = [];
+        const categoriaNoEntera = [];
 
-            // Placeholder para demo
-            showAlert('info', 'Simulación de envío.', `Se enviarían ${parsedRows.length} filas al backend.`);
+        parsedRows.forEach((r, i) => {
+            const fila = i + 2; // +2 por encabezado y base 1
+            if (!r.CodigoCabys || String(r.CodigoCabys).trim() === '') {
+                faltantesCabys.push(`Fila ${fila} (Codigo: ${r.Codigo || 's/d'})`);
+            }
+            if (!r.Detalle || String(r.Detalle).trim() === '') {
+                faltantesDetalle.push(`Fila ${fila} (Codigo: ${r.Codigo || 's/d'})`);
+            }
+            if (String(r.Unidad).trim() !== '' && !isInt(r.Unidad)) {
+                unidadNoEntera.push(`Fila ${fila} (Valor: "${r.Unidad}")`);
+            }
+            if (String(r.Cantidad).trim() !== '' && !isInt(r.Cantidad)) {
+                cantidadNoEntera.push(`Fila ${fila} (Valor: "${r.Cantidad}")`);
+            }
+            if (String(r.Precio).trim() !== '' && !isDecimalDot(r.Precio)) {
+                precioInvalido.push(`Fila ${fila} (Valor: "${r.Precio}")`);
+            }
+            if (String(r.TarifaIVA).trim() !== '' && !isInt(r.TarifaIVA)) {
+                tarifaNoEntera.push(`Fila ${fila} (Valor: "${r.TarifaIVA}")`);
+            }
+            if (String(r.FormaFarmaceutica).trim() !== '' && !isInt(r.FormaFarmaceutica)) {
+                formaNoEntera.push(`Fila ${fila} (Valor: "${r.FormaFarmaceutica}")`);
+            }
+            if (String(r.Categoria).trim() !== '' && !isInt(r.Categoria)) {
+                categoriaNoEntera.push(`Fila ${fila} (Codigo: ${r.Codigo || 's/d'})`);
+            }
+        });
+
+        if (
+            faltantesCabys.length || faltantesDetalle.length ||
+            unidadNoEntera.length || cantidadNoEntera.length ||
+            precioInvalido.length || tarifaNoEntera.length ||
+            formaNoEntera.length || categoriaNoEntera.length
+        ) {
+            const detalle = [
+                faltantesCabys.length ? `<div><strong>CodigoCabys vacio:</strong><br>${faltantesCabys.join('<br>')}</div>` : '',
+                faltantesDetalle.length ? `<div class="mt-2"><strong>Detalle vacio:</strong><br>${faltantesDetalle.join('<br>')}</div>` : '',
+                unidadNoEntera.length ? `<div class="mt-2"><strong>Unidad no numerica:</strong><br>${unidadNoEntera.join('<br>')}</div>` : '',
+                cantidadNoEntera.length ? `<div class="mt-2"><strong>Cantidad no numerica:</strong><br>${cantidadNoEntera.join('<br>')}</div>` : '',
+                precioInvalido.length ? `<div class="mt-2"><strong>Precio invalido (use punto decimal):</strong><br>${precioInvalido.join('<br>')}</div>` : '',
+                tarifaNoEntera.length ? `<div class="mt-2"><strong>TarifaIVA no numerica:</strong><br>${tarifaNoEntera.join('<br>')}</div>` : '',
+                formaNoEntera.length ? `<div class="mt-2"><strong>FormaFarmaceutica no numerica:</strong><br>${formaNoEntera.join('<br>')}</div>` : '',
+                categoriaNoEntera.length ? `<div class="mt-2"><strong>Categoria no numerica:</strong><br>${categoriaNoEntera.join('<br>')}</div>` : ''
+            ].join('');
+
+            showAlert('danger', 'No se puede procesar la carga.', detalle);
+            Swal.close();
+            setTimeout(() => {
+                swalError('Corrige los campos obligatorios y numéricos en el exel y vuelva a adjuntarlo nuevamente.');
+            }, 300);
+            return;
+        }
+
+        try {
+            const res = await fetch(apiCargarProductos, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    rows: parsedRows
+                })
+            });
+
+            // Intenta leer JSON siempre (éxito o error)
+            const data = await res.json().catch(() => ({}));
+
+            // Construye un mensaje claro desde el backend, si existe
+            const serverMsg = (data && (data.message || data.msg || data.error)) || '';
+            const detalleErrores = (() => {
+                // Soporte para formatos de detalle comunes del backend
+                const parts = [];
+
+                if (data && data.data && Array.isArray(data.data.errores) && data.data.errores.length) {
+                    // Lista de errores por fila (validaciones)
+                    const lines = data.data.errores.map(e =>
+                        `Fila ${e.fila}${e.codigo ? ` (Codigo: ${e.codigo})` : ''}: ${Array.isArray(e.errores) ? e.errores.join('; ') : e.errores}`
+                    );
+                    parts.push(`<div class="mt-2"><strong>Detalle de errores:</strong><br>${lines.join('<br>')}</div>`);
+                }
+
+                if (data && data.data && data.data.resumen) {
+                    const r = data.data.resumen;
+                    parts.push(
+                        `<div class="mt-2"><strong>Resumen:</strong> Total=${r.total ?? '-'}, Insertados=${r.insertados ?? '-'}, Actualizados=${r.actualizados ?? '-'}, Errores=${r.errores ?? '-'}</div>`
+                    );
+                }
+
+                if (data && data.data && Array.isArray(data.data.resultados) && data.data.resultados.length) {
+                    const first10 = data.data.resultados.slice(0, 10).map(x =>
+                        `Fila ${x.fila}${x.codigo ? ` (Codigo: ${x.codigo})` : ''}: ${x.status}`
+                    );
+                    parts.push(`<div class="mt-2"><strong>Resultados (primeros 10):</strong><br>${first10.join('<br>')}</div>`);
+                }
+
+                return parts.join('');
+            })();
+
+            if (!res.ok) {
+                const msg = serverMsg || `Error HTTP ${res.status}`;
+                Swal.close();
+                swalError(msg);
+                showAlert('danger', 'No se pudo procesar la carga.', [msg, detalleErrores].filter(Boolean).join('<br>'));
+                return;
+            }
+
+            // Éxito
+            const okMsg = serverMsg || 'Carga procesada correctamente.';
+            Swal.close();
+            swalOk(okMsg);
+            showAlert('success', 'Proceso completado.', detalleErrores || okMsg);
+            resetState();
+
         } catch (err) {
+            Swal.close();
+            swalError('Error de red al procesar.');
             showAlert('danger', 'Error de red al procesar.', String(err));
         }
+
     });
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>

@@ -1,5 +1,4 @@
 <?php
-// api/hacienda/index.php
 require_once '../../system/session.php';
 header('Content-Type: application/json; charset=utf-8');
 
@@ -174,6 +173,22 @@ switch ($accion) {
                     'idTipoCedula' => (int)$r['id_tipo_cedula'],
                     'codigo'       => $r['codigo'],
                     'descripcion'  => $r['descripcion']
+                ];
+            }
+            echo json_encode($out);
+            exit;
+        }
+    case 'formas_farmaceuticas': {
+            $sql = "SELECT id_forma_farmaceutica, codigo, nombre
+                FROM hacienda_forma_farmaceutica
+                ORDER BY nombre";
+            $res = query($sql);
+            $out = [];
+            while ($r = mysqli_fetch_assoc($res)) {
+                $out[] = [
+                    'idFormaFarmaceutica' => (int)$r['id_forma_farmaceutica'],
+                    'codigo'             => $r['codigo'],
+                    'nombre'             => $r['nombre']
                 ];
             }
             echo json_encode($out);

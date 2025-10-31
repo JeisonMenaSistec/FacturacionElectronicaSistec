@@ -50,6 +50,30 @@ switch ($accion) {
             responseApi(200, '', $out);
         }
 
+
+        /* --------------------------------------------
+     * FORMA FARMACEUTICA (para selects y filtros)
+     * -------------------------------------------- */
+    case 'formaFarmaceutica': {
+            $sql = "
+            SELECT id_forma_farmaceutica, codigo, nombre
+            FROM hacienda_forma_farmaceutica
+            ORDER BY nombre ASC
+        ";
+            $res = query($sql);
+            if ($res === false) responseApi(500, 'Error consultando formas farmacéuticas');
+
+            $out = [];
+            while ($r = mysqli_fetch_assoc($res)) {
+                $out[] = [
+                    'idFormaFarmaceutica' => (int)$r['id_forma_farmaceutica'],
+                    'codigo' => $r['codigo'],
+                    'nombre' => $r['nombre']
+                ];
+            }
+            responseApi(200, '', $out);
+        }
+
         /* --------------------------------------------
      * LISTAR
      * Parámetros opcionales:
@@ -88,12 +112,12 @@ switch ($accion) {
                     p.id_categoria, p.id_unidad_medida, p.cantidad, p.precio_unitario, p.id_imp_general,
                     p.descripcion, p.es_medicamento,
                     p.med_registro_sanitario, p.med_fecha_v_registro, p.med_id_tipo_medicamento,
-                    p.med_principio_activo, p.med_concentracion, p.med_forma_farmaceutica,
+                    p.med_principio_activo, p.med_concentracion, p.med_id_forma_farmaceutica,
                     p.codigo_barras, p.marca, p.modelo, p.notas, p.sku,
                     p.estado, p.id_usuario_creacion, p.fecha_creacion, p.id_usuario_modificacion, p.fecha_modificacion
                 FROM producto p
                 WHERE $where
-                ORDER BY p.fecha_modificacion DESC, p.id DESC
+                ORDER BY p.id DESC, p.id DESC
                 LIMIT $tamPagina OFFSET $offset
             ";
             $res = query($sql);
@@ -147,13 +171,14 @@ switch ($accion) {
                 'precioUnitario'       => isset($r['precio_unitario']) ? (float)$r['precio_unitario'] : null,
                 'idImpGeneral'         => isset($r['id_imp_general']) ? (int)$r['id_imp_general'] : null,
                 'descripcion'          => $r['descripcion'],
+                'partidaArancelaria' => $r['partida_arancelaria'],
                 'esMedicamento'        => (int)$r['es_medicamento'],
                 'medRegistroSanitario' => $r['med_registro_sanitario'],
-                'medFechaVRegistro'    => isset($r['med_fecha_v_registro']) ? (int)$r['med_fecha_v_registro'] : null,
+                'medFechaVRegistro'    => isset($r['med_fecha_v_registro']) ? (string)$r['med_fecha_v_registro'] : null,
                 'medIdTipoMedicamento' => isset($r['med_id_tipo_medicamento']) ? (int)$r['med_id_tipo_medicamento'] : null,
                 'medPrincipioActivo'   => $r['med_principio_activo'],
                 'medConcentracion'     => $r['med_concentracion'],
-                'medFormaFarmaceutica' => $r['med_forma_farmaceutica'],
+                'medFormaFarmaceutica' => isset($r['med_id_forma_farmaceutica']) ? (int)$r['med_id_forma_farmaceutica'] : null,
                 'codigoBarras'         => $r['codigo_barras'],
                 'marca'                => $r['marca'],
                 'modelo'               => $r['modelo'],
@@ -179,14 +204,15 @@ switch ($accion) {
             $precioUnitario  = toFloatOrNull($body['precioUnitario'] ?? null);
             $idImpGeneral    = toIntOrNull($body['idImpGeneral'] ?? null);
             $descripcion     = sanitizeInput($body['descripcion'] ?? '');
+            $partidaArancelaria = sanitizeInput($body['partidaArancelaria'] ?? '');
 
             $esMedicamento   = normalizarBool($body['esMedicamento'] ?? 0);
             $medReg          = sanitizeInput($body['medRegistroSanitario'] ?? '');
-            $medVence        = fechaToEpochOrNull($body['medFechaVRegistro'] ?? '');
+            $medVence        = fechaFormatoOrNull($body['medFechaVRegistro'] ?? '');
             $medTipo         = toIntOrNull($body['medIdTipoMedicamento'] ?? null);
             $medPrincipio    = sanitizeInput($body['medPrincipioActivo'] ?? '');
             $medConc         = sanitizeInput($body['medConcentracion'] ?? '');
-            $medForma        = sanitizeInput($body['medFormaFarmaceutica'] ?? '');
+            $medForma        = toIntOrNull($body['medFormaFarmaceutica'] ?? '');
 
             $codigoBarras    = sanitizeInput($body['codigoBarras'] ?? '');
             $marca           = sanitizeInput($body['marca'] ?? '');
@@ -198,6 +224,15 @@ switch ($accion) {
                 responseApi(400, 'Faltan campos obligatorios: CABYS y nombre.');
             }
 
+            //validacion para no permitir el mismo codigo en la misma empresa
+            if ($codProducto !== '') {
+                $existeCod = fetchAssoc("SELECT id FROM producto WHERE id_empresa = " . intval($empresaId) . " AND cod_producto = '" . $codProducto . "' LIMIT 1");
+                if ($existeCod) {
+                    responseApi(400, 'El código de producto ya existe en la empresa.');
+                }
+            }
+
+
             $idProducto = siguienteIdProductoPorEmpresa($empresaId);
             $ahora = fActual();
 
@@ -208,7 +243,7 @@ switch ($accion) {
                 id_categoria, id_unidad_medida, cantidad, precio_unitario, id_imp_general,
                 descripcion, es_medicamento,
                 med_registro_sanitario, med_fecha_v_registro, med_id_tipo_medicamento,
-                med_principio_activo, med_concentracion, med_forma_farmaceutica,
+                med_principio_activo, med_concentracion, med_id_forma_farmaceutica,
                 codigo_barras, marca, modelo, notas, sku,
                 estado, id_usuario_creacion, fecha_creacion, id_usuario_modificacion, fecha_modificacion
             )
@@ -225,9 +260,10 @@ switch ($accion) {
                 " . ($precioUnitario !== null ? $precioUnitario : "NULL") . ",
                 " . ($idImpGeneral !== null ? intval($idImpGeneral) : "NULL") . ",
                 " . ($descripcion !== '' ? "'" . $descripcion . "'" : "NULL") . ",
+                " . ($partidaArancelaria !== '' ? "'" . $partidaArancelaria . "'" : "NULL") . ",
                 " . intval($esMedicamento) . ",
                 " . ($medReg !== '' ? "'" . $medReg . "'" : "NULL") . ",
-                " . ($medVence !== null ? intval($medVence) : "NULL") . ",
+                " . ($medVence !== null ?  "'" . $medVence . "'" : "NULL") . ",
                 " . ($medTipo !== null ? intval($medTipo) : "NULL") . ",
                 " . ($medPrincipio !== '' ? "'" . $medPrincipio . "'" : "NULL") . ",
                 " . ($medConc !== '' ? "'" . $medConc . "'" : "NULL") . ",
@@ -277,14 +313,15 @@ switch ($accion) {
             $precioUnitario  = array_key_exists('precioUnitario', $body) ? toFloatOrNull($body['precioUnitario']) : null;
             $idImpGeneral    = array_key_exists('idImpGeneral', $body) ? toIntOrNull($body['idImpGeneral']) : null;
             $descripcion     = array_key_exists('descripcion', $body) ? sanitizeInput($body['descripcion']) : null;
+            $partidaArancelaria = array_key_exists('partidaArancelaria', $body) ? sanitizeInput($body['partidaArancelaria']) : null;
 
             $esMedicamento   = array_key_exists('esMedicamento', $body) ? normalizarBool($body['esMedicamento']) : null;
             $medReg          = array_key_exists('medRegistroSanitario', $body) ? sanitizeInput($body['medRegistroSanitario']) : null;
-            $medVence        = array_key_exists('medFechaVRegistro', $body) ? fechaToEpochOrNull($body['medFechaVRegistro']) : null;
+            $medVence        = array_key_exists('medFechaVRegistro', $body) ? fechaFormatoOrNull($body['medFechaVRegistro']) : null;
             $medTipo         = array_key_exists('medIdTipoMedicamento', $body) ? toIntOrNull($body['medIdTipoMedicamento']) : null;
             $medPrincipio    = array_key_exists('medPrincipioActivo', $body) ? sanitizeInput($body['medPrincipioActivo']) : null;
             $medConc         = array_key_exists('medConcentracion', $body) ? sanitizeInput($body['medConcentracion']) : null;
-            $medForma        = array_key_exists('medFormaFarmaceutica', $body) ? sanitizeInput($body['medFormaFarmaceutica']) : null;
+            $medForma        = array_key_exists('medFormaFarmaceutica', $body) ? toIntOrNull($body['medFormaFarmaceutica']) : null;
 
             $codigoBarras    = array_key_exists('codigoBarras', $body) ? sanitizeInput($body['codigoBarras']) : null;
             $marca           = array_key_exists('marca', $body) ? sanitizeInput($body['marca']) : null;
@@ -302,14 +339,15 @@ switch ($accion) {
             if ($precioUnitario !== null)  $campos[] = ($precioUnitario !== null ? "precio_unitario = " . $precioUnitario : "precio_unitario = NULL");
             if ($idImpGeneral !== null)    $campos[] = ($idImpGeneral !== null ? "id_imp_general = " . (int)$idImpGeneral : "id_imp_general = NULL");
             if ($descripcion !== null)     $campos[] = ($descripcion !== '' ? "descripcion = '" . $descripcion . "'" : "descripcion = NULL");
+            if ($partidaArancelaria !== null) $campos[] = ($partidaArancelaria !== '' ? "partida_arancelaria = '" . $partidaArancelaria . "'" : "partida_arancelaria = NULL");
 
             if ($esMedicamento !== null)   $campos[] = "es_medicamento = " . (int)$esMedicamento;
             if ($medReg !== null)          $campos[] = ($medReg !== '' ? "med_registro_sanitario = '" . $medReg . "'" : "med_registro_sanitario = NULL");
-            if ($medVence !== null)        $campos[] = ($medVence !== null ? "med_fecha_v_registro = " . (int)$medVence : "med_fecha_v_registro = NULL");
+            if ($medVence !== null)        $campos[] = ($medVence !== null ? "med_fecha_v_registro = '" . $medVence . "'" : "med_fecha_v_registro = NULL");
             if ($medTipo !== null)         $campos[] = ($medTipo !== null ? "med_id_tipo_medicamento = " . (int)$medTipo : "med_id_tipo_medicamento = NULL");
             if ($medPrincipio !== null)    $campos[] = ($medPrincipio !== '' ? "med_principio_activo = '" . $medPrincipio . "'" : "med_principio_activo = NULL");
             if ($medConc !== null)         $campos[] = ($medConc !== '' ? "med_concentracion = '" . $medConc . "'" : "med_concentracion = NULL");
-            if ($medForma !== null)        $campos[] = ($medForma !== '' ? "med_forma_farmaceutica = '" . $medForma . "'" : "med_forma_farmaceutica = NULL");
+            if ($medForma !== null)        $campos[] = ($medForma !== '' ? "med_id_forma_farmaceutica = '" . $medForma . "'" : "med_id_forma_farmaceutica = NULL");
 
             if ($codigoBarras !== null)    $campos[] = ($codigoBarras !== '' ? "codigo_barras = '" . $codigoBarras . "'" : "codigo_barras = NULL");
             if ($marca !== null)           $campos[] = ($marca !== '' ? "marca = '" . $marca . "'" : "marca = NULL");

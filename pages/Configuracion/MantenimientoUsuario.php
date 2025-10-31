@@ -468,7 +468,7 @@
                 const nombreCompleto = data?.nombre || '';
                 if (nombreCompleto) {
                     document.getElementById('nombreCompleto').value = nombreCompleto;
-                    toastOk('Datos cargados desde Hacienda');
+                    toastOk('Datos cargados');
                 } else {
                     toastWarn('Sin resultados en Hacienda');
                 }

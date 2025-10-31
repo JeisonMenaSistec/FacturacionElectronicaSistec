@@ -3,9 +3,9 @@
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
 define('DB_PASS', '');
-define('DB_NAME', 'sistec_fe_v2');
+define('DB_NAME', 'fe_sistec');
 
-define('DOMAIN', 'http://localhost/SistecFE'); // Ejemplo: DOMAIN
+define('DOMAIN', 'http://localhost/FacturacionElectronicaSistec'); // Ejemplo: DOMAIN
 define('BASE_PATH', dirname(__DIR__)); // Esto apunta a la carpeta principal /SistecFE
 define('LIB_PATH', BASE_PATH . '/lib'); // Ejemplo: LIB_PATH
 

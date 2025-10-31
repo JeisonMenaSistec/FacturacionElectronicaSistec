@@ -27,14 +27,16 @@ function toFloatOrNull($v)
     return null;
 }
 
-/** Convierte 'YYYY-MM-DD' a timestamp UNIX (int) o NULL si vacío/inválido. */
-function fechaToEpochOrNull($yyyyMmDd)
+/** Convierte de time fecha mysql o NULL si vacío/inválido. */
+function fechaFormatoOrNull($fecha)
 {
-    $s = trim((string)$yyyyMmDd);
-    if ($s === '') return null;
-    $t = strtotime($s);
-    if ($t === false) return null;
-    return (int)$t;
+    //validar que sea una fecha real y devolver fecha o null
+    if ($fecha === null) return null;
+    $f = trim((string)$fecha);
+    if ($f === '') return null;
+    $ts = strtotime($f);
+    if ($ts === false) return null;
+    return date('Y-m-d', $ts);
 }
 
 /** Siguiente id_producto (secuencial por empresa). */

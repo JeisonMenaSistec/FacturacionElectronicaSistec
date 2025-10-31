@@ -33,7 +33,7 @@ switch ($accion) {
     case 'perfil': {
             $r = fetchAssoc("
             SELECT u.id_usuario, u.usuario_guid, u.id_empresa, u.id_rol,
-                    u.correo_electronico, u.nombre, u.apellido1, u.apellido2,
+                    u.identificacion, u.correo_electronico, u.nombre, u.apellido1, u.apellido2,
                    u.telefono_fijo, u.telefono_extension, u.celular, u.fax,
                    u.provincia, u.canton, u.distrito, u.direccion_exacta,
                    u.estado, u.foto_url, u.id_pregunta_seguridad
@@ -47,6 +47,7 @@ switch ($accion) {
                 'usuarioGuid'        => $r['usuario_guid'],
                 'idEmpresa'          => (int)$r['id_empresa'],
                 'idRol'              => (int)$r['id_rol'],
+                'identificacion'     => $r['identificacion'] ?? '',
                 'correoElectronico'  => $r['correo_electronico'],
                 'nombre'             => $r['nombre'],
                 'apellido1'          => $r['apellido1'],

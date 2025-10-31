@@ -10,7 +10,7 @@ if (!isset($_SESSION['id_usuario'])) {
 
 require 'system/session.php';
 
-$pag = isset($_GET['pag']) ? sanitizeInput($_GET['pag']) : $config->ruta_default;
+$pag = isset($_GET['pag']) ? sanitizeInput($_GET['pag']) : '';
 if (empty($pag)) {
     redirect('?pag=' . $config->ruta_default);
     exit();
@@ -42,8 +42,10 @@ if (!$rol) {
 $rolMenu = fetchObject("SELECT * FROM rol_menu WHERE id_rol = $usuario->id_rol AND id_menu = $menu->id_menu AND id_empresa= $usuario->id_empresa LIMIT 1");
 
 if (!$rolMenu || $rolMenu->permiso_ver == 0) {
-    require 'pages/403.php';
-    exit();
+    if($config->ruta_default!=$pag){    
+        require 'pages/403.php';
+        exit();
+    }
 }
 
 $empresa = fetchObject("SELECT * FROM empresa WHERE id_empresa = $usuario->id_empresa LIMIT 1");

@@ -56,6 +56,7 @@
 
     <meta name="site_url" content="<?= htmlspecialchars(DOMAIN, ENT_QUOTES) ?>">
 
+    <script src="<?= DOMAIN ?>/assets/js/app.js"></script>
 </head>
 
 <body>
@@ -528,8 +529,8 @@
                         <!-- End::header-link|dropdown-toggle -->
                         <ul class="main-header-dropdown dropdown-menu pt-0 overflow-hidden header-profile-dropdown dropdown-menu-end"
                             aria-labelledby="mainHeaderProfile">
-                            <li><a class="dropdown-item d-flex align-items-center" href="#"><i
-                                        class="ti ti-user me-2 fs-16"></i>Profile</a></li>
+                            <li><a class="dropdown-item d-flex align-items-center" href="?pag=Configuracion/MiInformacionUsuario"><i
+                                        class="ti ti-user me-2 fs-16"></i>Perfil</a></li>
                             <li><a class="dropdown-item d-flex align-items-center" href="#"><i
                                         class="ti ti-headset me-2 fs-16"></i>Support</a></li>
                             <li><a class="dropdown-item d-flex align-items-center" href="./logout.php"><i
@@ -553,11 +554,11 @@
 
             <!-- Start::main-sidebar-header -->
             <div class="main-sidebar-header">
-                <a href="Dashboard/Index" class="header-logo">
-                    <img src="<?= DOMAIN ?>/assets/template/images/logo.png" alt="logo" class="desktop-logo">
-                    <img src="<?= DOMAIN ?>/assets/template/images/logo.png" alt="logo" class="toggle-dark">
-                    <img src="<?= DOMAIN ?>/assets/template/images/logo.png" alt="logo" class="desktop-dark">
-                    <img src="<?= DOMAIN ?>/assets/template/images/logo.png" alt="logo" class="toggle-logo">
+                <a href="./" class="header-logo">
+                    <img src="<?= $config->url_desktop_logo ?>" alt="logo" class="desktop-logo">
+                    <img src="<?= $config->url_toggle_dark ?>" alt="logo" class="toggle-dark">
+                    <img src="<?= $config->url_desktop_dark ?>" alt="logo" class="desktop-dark">
+                    <img src="<?= $config->url_toggle_dark ?>" alt="logo" class="toggle-logo">
                 </a>
             </div>
             <!-- End::main-sidebar-header -->

@@ -201,7 +201,9 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label for="addFormaFarmaceutica" class="form-label">Forma farmacéutica</label>
-                                    <input type="text" class="form-control" id="addFormaFarmaceutica" name="formaFarmaceutica" placeholder="Tableta, jarabe, etc.">
+                                    <select class="form-select" id="addFormaFarmaceutica" name="formaFarmaceutica">
+                                        <!-- dinámico -->
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -252,8 +254,8 @@
                         <div class="col-12 d-none" id="addMasOpciones">
                             <div class="row g-3 border rounded p-3">
                                 <div class="col-md-4">
-                                    <label for="addBarras" class="form-label">Código de barras</label>
-                                    <input type="text" class="form-control" id="addBarras" name="codigoBarras">
+                                    <label for="addPartidaArancelaria" class="form-label">Partida Arancelaria</label>
+                                    <input type="text" class="form-control" id="addPartidaArancelaria" name="partidaArancelaria">
                                 </div>
                                 <div class="col-md-4">
                                     <label for="addMarca" class="form-label">Marca</label>
@@ -264,12 +266,16 @@
                                     <input type="text" class="form-control" id="addModelo" name="modelo">
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="addNota" class="form-label">Notas</label>
-                                    <input type="text" class="form-control" id="addNota" name="notas">
+                                    <label for="addBarras" class="form-label">Código de barras</label>
+                                    <input type="text" class="form-control" id="addBarras" name="codigoBarras">
                                 </div>
                                 <div class="col-md-6">
                                     <label for="addSku" class="form-label">SKU</label>
                                     <input type="text" class="form-control" id="addSku" name="sku">
+                                </div>
+                                <div class="col-md-12">
+                                    <label for="addNota" class="form-label">Notas</label>
+                                    <input type="text" class="form-control" id="addNota" name="notas">
                                 </div>
                             </div>
                         </div>
@@ -370,7 +376,9 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label for="editFormaFarmaceutica" class="form-label">Forma farmacéutica</label>
-                                    <input type="text" class="form-control" id="editFormaFarmaceutica" name="formaFarmaceutica" placeholder="Tableta, jarabe, etc.">
+                                    <select class="form-select" id="editFormaFarmaceutica" name="formaFarmaceutica">
+                                        <!-- dinámico -->
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -421,8 +429,8 @@
                         <div class="col-12 d-none" id="editMasOpciones">
                             <div class="row g-3 border rounded p-3">
                                 <div class="col-md-4">
-                                    <label for="editBarras" class="form-label">Código de barras</label>
-                                    <input type="text" class="form-control" id="editBarras" name="codigoBarras">
+                                    <label for="editPartidaArancelaria" class="form-label">Partida Arancelaria</label>
+                                    <input type="text" class="form-control" id="editPartidaArancelaria" name="artidaArancelaria">
                                 </div>
                                 <div class="col-md-4">
                                     <label for="editMarca" class="form-label">Marca</label>
@@ -433,12 +441,16 @@
                                     <input type="text" class="form-control" id="editModelo" name="modelo">
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="editNota" class="form-label">Notas</label>
-                                    <input type="text" class="form-control" id="editNota" name="notas">
+                                    <label for="editBarras" class="form-label">Código de barras</label>
+                                    <input type="text" class="form-control" id="editBarras" name="codigoBarras">
                                 </div>
                                 <div class="col-md-6">
                                     <label for="editSku" class="form-label">SKU</label>
                                     <input type="text" class="form-control" id="editSku" name="sku">
+                                </div>
+                                <div class="col-md-12">
+                                    <label for="editNota" class="form-label">Notas</label>
+                                    <input type="text" class="form-control" id="editNota" name="notas">
                                 </div>
                             </div>
                         </div>
@@ -577,6 +589,7 @@
         const addPrecio = document.getElementById('addPrecio');
         const addIva = document.getElementById('addIva');
         const addDescripcion = document.getElementById('addDescripcion');
+        const partidaArancelaria = document.getElementById('partidaArancelaria');
         const addMostrarMas = document.getElementById('addMostrarMas');
         const addMasOpciones = document.getElementById('addMasOpciones');
         const addBarras = document.getElementById('addBarras');
@@ -605,6 +618,7 @@
         const editPrecio = document.getElementById('editPrecio');
         const editIva = document.getElementById('editIva');
         const editDescripcion = document.getElementById('editDescripcion');
+        const editPartidaArancelaria = document.getElementById('editPartidaArancelaria');
         const editMostrarMas = document.getElementById('editMostrarMas');
         const editMasOpciones = document.getElementById('editMasOpciones');
         const editBarras = document.getElementById('editBarras');
@@ -618,31 +632,6 @@
         const cabysQueryInput = document.getElementById('cabysQuery');
         const cabysResultados = document.getElementById('cabysResultados');
         const btnBuscarCabys = document.getElementById('btnBuscarCabys');
-
-        // SweetAlert helpers
-        const swalOk = (msg) => Swal.fire({
-            icon: 'success',
-            title: 'Listo',
-            text: msg,
-            timer: 1600,
-            showConfirmButton: false
-        });
-        const swalError = (msg) => Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: msg
-        });
-        const swalConfirm = async (title, text, confirmText = 'Sí, continuar') => {
-            const r = await Swal.fire({
-                icon: 'warning',
-                title,
-                text,
-                showCancelButton: true,
-                confirmButtonText: confirmText,
-                cancelButtonText: 'Cancelar'
-            });
-            return r.isConfirmed;
-        };
 
         // UI togglers
         addEsMedicamento?.addEventListener('change', () => {
@@ -664,19 +653,6 @@
             currency: 'CRC',
             minimumFractionDigits: 2
         });
-        const toEpoch = (yyyyMmDd) => {
-            if (!yyyyMmDd) return null;
-            const dt = new Date(yyyyMmDd + 'T00:00:00');
-            return Math.floor(dt.getTime() / 1000);
-        };
-        const epochToYyyyMmDd = (ts) => {
-            if (!ts) return '';
-            const d = new Date(ts * 1000);
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const dd = String(d.getDate()).padStart(2, '0');
-            return `${y}-${m}-${dd}`;
-        };
 
         // ==== CARGA DE CATÁLOGOS ====
         async function fetchJson(url, bodyObj) {
@@ -695,7 +671,7 @@
             const list = await fetchJson(apiHacienda, {
                 accion: 'unidad_medida'
             });
-            const opts = ['<option value="">-- Seleccione --</option>'].concat(
+            const opts = ['<option value="0">-- Seleccione --</option>'].concat(
                 (list || []).map(u => `<option value="${u.idUnidadMedida}">${u.descripcion} (${u.simbolo})</option>`)
             ).join('');
             arrUnidadesMedidaNombres = list.reduce((acc, u) => {
@@ -710,7 +686,7 @@
             const list = await fetchJson(apiHacienda, {
                 accion: 'imp_general'
             });
-            const opts = ['<option value="">-- Seleccione --</option>'].concat(
+            const opts = ['<option value="0">-- Seleccione --</option>'].concat(
                 (list || []).map(i => `<option value="${i.idImpGeneral}">${i.descripcion}</option>`)
             ).join('');
             addIva.innerHTML = opts;
@@ -721,11 +697,22 @@
             const list = await fetchJson(apiHacienda, {
                 accion: 'tipo_medicamentos'
             });
-            const opts = ['<option value="">-- Seleccione --</option>'].concat(
+            const opts = ['<option value="0">-- Seleccione --</option>'].concat(
                 (list || []).map(t => `<option value="${t.idTipoMedicamento}">${t.descripcion}</option>`)
             ).join('');
             addTipoMedicamento.innerHTML = opts;
             editTipoMedicamento.innerHTML = opts;
+        }
+
+        async function cargarFormasFarmaceuticas() {
+            const list = await fetchJson(apiHacienda, {
+                accion: 'formas_farmaceuticas'
+            });
+            const opts = ['<option value="0">-- Seleccione --</option>'].concat(
+                (list || []).map(f => `<option value="${f.idFormaFarmaceutica}">${f.nombre}</option>`)
+            ).join('');
+            addFormaFarmaceutica.innerHTML = opts;
+            editFormaFarmaceutica.innerHTML = opts;
         }
 
         var arrCategoriasNombres = [];
@@ -760,7 +747,7 @@
                 p.estado === 2 ? '<span class="badge bg-secondary">Inactivo</span>' :
                 '<span class="badge bg-danger">Eliminado</span>';
 
-                    tr.innerHTML = `
+            tr.innerHTML = `
             <td>${p.codProducto || ''}</td>
             <td>${p.nombre || ''}</td>
             <td>${arrUnidadesMedidaNombres[p.idUnidadMedida] || ''}</td>
@@ -922,7 +909,7 @@
 
         // ==== CREAR ====
         btnGuardarProducto?.addEventListener('click', async () => {
-            try {
+            // try {
                 if (!addCabys.value.trim() || !addNombre.value.trim()) {
                     swalError('Ingrese al menos CABYS y nombre.');
                     return;
@@ -938,9 +925,10 @@
                     precioUnitario: addPrecio.value ? Number(addPrecio.value) : null,
                     idImpGeneral: addIva.value ? parseInt(addIva.value, 10) : null,
                     descripcion: addDescripcion.value.trim() || null,
+                    partidaArancelaria: addPartidaArancelaria.value.trim() || null,
                     esMedicamento: !!addEsMedicamento.checked,
                     medRegistroSanitario: addRegSanitario.value.trim() || null,
-                    medFechaVRegistro: addRegVence.value ? toEpoch(addRegVence.value) : null,
+                    medFechaVRegistro: addRegVence.value ? addRegVence.value : null,
                     medIdTipoMedicamento: addTipoMedicamento.value ? parseInt(addTipoMedicamento.value, 10) : null,
                     medPrincipioActivo: addPrincipioActivo.value.trim() || null,
                     medConcentracion: addConcentracion.value.trim() || null,
@@ -966,9 +954,9 @@
                 modalAgregar.hide();
                 limpiarFormularioAgregar();
                 await cargarProductos();
-            } catch (e) {
-                swalError(e.message || 'Error creando producto');
-            }
+            // } catch (e) {
+            //     swalError(e.message || 'Error creando producto');
+            // }
         });
 
         function limpiarFormularioAgregar() {
@@ -1039,7 +1027,7 @@
 
             // Eliminar (estado = 0)
             if (btn.classList.contains('btnEliminar')) {
-                const ok = await swalConfirm('¿Eliminar producto?', 'Se realizará eliminación lógica (estado = 0).', 'Sí, eliminar');
+                const ok = await swalConfirm('¿Eliminar producto?', 'Se eliminará para siempre', 'Sí, eliminar');
                 if (!ok) return;
                 try {
                     const res = await fetch(apiProductos, {
@@ -1093,7 +1081,7 @@
                 editEsMedicamento.checked = p.esMedicamento === 1;
                 editCamposMedicamento.classList.toggle('d-none', !editEsMedicamento.checked);
                 editRegSanitario.value = p.medRegistroSanitario || '';
-                editRegVence.value = p.medFechaVRegistro ? epochToYyyyMmDd(p.medFechaVRegistro) : '';
+                editRegVence.value = p.medFechaVRegistro ? p.medFechaVRegistro : '';
                 if (p.medIdTipoMedicamento != null) editTipoMedicamento.value = String(p.medIdTipoMedicamento);
                 editPrincipioActivo.value = p.medPrincipioActivo || '';
                 editConcentracion.value = p.medConcentracion || '';
@@ -1101,7 +1089,8 @@
                 editCantidad.value = (p.cantidad != null ? p.cantidad : '');
                 editPrecio.value = (p.precioUnitario != null ? p.precioUnitario : '');
                 editDescripcion.value = p.descripcion || '';
-                editMostrarMas.checked = !!(p.codigoBarras || p.marca || p.modelo || p.notas || p.sku);
+                editPartidaArancelaria.value = p.partidaArancelaria || '';
+                editMostrarMas.checked = !!(p.codigoBarras || p.marca || p.modelo || p.notas || p.sku || p.partidaArancelaria);
                 editMasOpciones.classList.toggle('d-none', !editMostrarMas.checked);
                 editBarras.value = p.codigoBarras || '';
                 editMarca.value = p.marca || '';
@@ -1138,9 +1127,10 @@
                     precioUnitario: editPrecio.value ? Number(editPrecio.value) : null,
                     idImpGeneral: editIva.value ? parseInt(editIva.value, 10) : null,
                     descripcion: editDescripcion.value.trim() || null,
+                    partidaArancelaria: editPartidaArancelaria.value.trim() || null,
                     esMedicamento: !!editEsMedicamento.checked,
                     medRegistroSanitario: editRegSanitario.value.trim() || null,
-                    medFechaVRegistro: editRegVence.value ? toEpoch(editRegVence.value) : null,
+                    medFechaVRegistro: editRegVence.value ? (editRegVence.value) : null,
                     medIdTipoMedicamento: editTipoMedicamento.value ? parseInt(editTipoMedicamento.value, 10) : null,
                     medPrincipioActivo: editPrincipioActivo.value.trim() || null,
                     medConcentracion: editConcentracion.value.trim() || null,
@@ -1160,7 +1150,7 @@
                     body: JSON.stringify(payload)
                 });
                 const r = await res.json().catch(() => ({}));
-                if (!res.ok || r.status !== 200) throw new Error(r.message || 'No se pudo actualizar');
+                if (r.status !== 200) throw new Error(r.message || 'No se pudo actualizar');
 
                 swalOk('Producto actualizado');
                 modalEditar.hide();
@@ -1219,12 +1209,12 @@
                 items.forEach(item => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-          <td>${item.codigo}</td>
-          <td>${item.descripcion}</td>
-          <td class="text-center">
-            <button class="btn btn-sm btn-outline-success"><i class="ri-check-line"></i></button>
-          </td>
-        `;
+                        <td>${item.codigo}</td>
+                        <td>${item.descripcion}</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-success"><i class="ri-check-line"></i></button>
+                        </td>
+                    `;
                     tr.querySelector('button').addEventListener('click', () => {
                         const isAddOpen = document.getElementById('modalAgregarProducto')?.classList.contains('show');
                         if (isAddOpen) addCabys.value = item.codigo;
@@ -1259,6 +1249,7 @@
                     cargarUnidadesMedida(),
                     cargarImpuestos(),
                     cargarTiposMedicamento(),
+                    cargarFormasFarmaceuticas(),
                     cargarCategorias()
                 ]);
                 await cargarProductos();
